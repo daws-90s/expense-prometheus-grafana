@@ -1,0 +1,168 @@
+groups:
+
+  # ============================================
+  # NODE / HOST TIER
+  # ============================================
+  - name: node_alerts
+    rules:
+
+      - alert: HighCPUUsage
+        expr: instance:node_cpu_utilisation:rate5m > 70
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "CPU usage above 70% on {{ $labels.instance }}"
+          description: "Current value: {{ $value | printf \"%.1f\" }}%"
+
+      - alert: CriticalCPUUsage
+        expr: instance:node_cpu_utilisation:rate5m > 90
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "CPU usage above 90% on {{ $labels.instance }}"
+          description: "Current value: {{ $value | printf \"%.1f\" }}%"
+
+      - alert: HighMemoryUsage
+        expr: instance:node_memory_utilisation:ratio > 70
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Memory usage above 70% on {{ $labels.instance }}"
+
+      - alert: CriticalMemoryUsage
+        expr: instance:node_memory_utilisation:ratio > 90
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Memory usage above 90% on {{ $labels.instance }}"
+
+      - alert: HighDiskUsage
+        expr: instance:node_filesystem_utilisation:ratio > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Disk usage above 80% on {{ $labels.instance }} ({{ $labels.mountpoint }})"
+
+      - alert: CriticalDiskUsage
+        expr: instance:node_filesystem_utilisation:ratio > 90
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Disk usage above 90% on {{ $labels.instance }} ({{ $labels.mountpoint }})"
+
+      - alert: DiskWillFillIn4Hours
+        expr: |
+          instance:node_filesystem_avail_bytes:deriv1h < 0
+          and
+          (node_filesystem_avail_bytes{fstype!="tmpfs"} / -instance:node_filesystem_avail_bytes:deriv1h) < 4*3600
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Disk on {{ $labels.instance }} predicted to fill within 4 hours"
+
+      - alert: HighLoadAverage
+        expr: instance:node_load1:current > 3
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Load average above 3 on {{ $labels.instance }} (2 vCPU t3.micro)"
+
+      - alert: NodeDown
+        expr: up{job="node_exporter"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "node_exporter down on {{ $labels.instance }}"
+
+  # ============================================
+  # MYSQL TIER
+  # ============================================
+  - name: mysql_alerts
+    rules:
+
+      - alert: MySQLDown
+        expr: instance:mysql_up:current == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "MySQL exporter reports mysql_up=0 on {{ $labels.instance }}"
+
+      - alert: MySQLHighConnectionUsage
+        expr: instance:mysql_connections_active:ratio > 0.8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "MySQL connections above 80% of max on {{ $labels.instance }}"
+
+  # ============================================
+  # BACKEND APP (RED-based)
+  # ============================================
+  - name: backend_alerts
+    rules:
+
+      - alert: BackendHighErrorRate
+        expr: job_route:http_request_errors:ratio5m > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "5xx error rate above 5% on route {{ $labels.route }}"
+          description: "Current: {{ $value | printf \"%.2f\" }}"
+
+      - alert: BackendHighLatencyP95
+        expr: job_route:http_request_duration_seconds:p95 > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "p95 latency above 1s on route {{ $labels.route }}"
+
+      - alert: BackendDown
+        expr: up{job="expense-backend"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "expense-backend target down"
+
+  # ============================================
+  # BLACKBOX (external probes)
+  # ============================================
+  - name: blackbox_alerts
+    rules:
+
+      - alert: ProbeFailing
+        expr: job:probe_success:ratio5m < 1
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Probe failing for {{ $labels.instance }}"
+          description: "Success ratio over 5m: {{ $value | printf \"%.2f\" }}"
+
+      - alert: SSLCertExpiringSoon
+        expr: instance:probe_ssl_earliest_cert_expiry:hours_remaining < 720
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: "SSL cert for {{ $labels.instance }} expires in under 30 days"
+
+      - alert: SSLCertExpiringCritical
+        expr: instance:probe_ssl_earliest_cert_expiry:hours_remaining < 72
+        for: 1h
+        labels:
+          severity: critical
+        annotations:
+          summary: "SSL cert for {{ $labels.instance }} expires in under 3 days"

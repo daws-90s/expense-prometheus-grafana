@@ -1,0 +1,109 @@
+groups:
+
+  # ============================================
+  # NODE / HOST TIER
+  # ============================================
+  - name: node_recording_rules
+    interval: 30s
+    rules:
+
+      - record: instance:node_cpu_utilisation:rate5m
+        expr: 100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)
+
+      - record: instance:node_memory_utilisation:ratio
+        expr: |
+          100 * (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes))
+
+      - record: instance:node_filesystem_utilisation:ratio
+        expr: |
+          100 * (1 - (node_filesystem_avail_bytes{fstype!="tmpfs"} / node_filesystem_size_bytes{fstype!="tmpfs"}))
+
+      - record: instance:node_filesystem_avail_bytes:deriv1h
+        expr: deriv(node_filesystem_avail_bytes{fstype!="tmpfs"}[1h])
+
+      - record: instance:node_load1:current
+        expr: node_load1
+
+      - record: instance:node_load5:current
+        expr: node_load5
+
+      - record: instance:node_network_receive_bits:rate5m
+        expr: rate(node_network_receive_bytes_total{device!="lo"}[5m]) * 8
+
+      - record: instance:node_network_transmit_bits:rate5m
+        expr: rate(node_network_transmit_bytes_total{device!="lo"}[5m]) * 8
+
+      - record: instance:node_disk_read_bytes:rate5m
+        expr: rate(node_disk_read_bytes_total[5m])
+
+      - record: instance:node_disk_written_bytes:rate5m
+        expr: rate(node_disk_written_bytes_total[5m])
+
+  # ============================================
+  # MYSQL TIER
+  # ============================================
+  - name: mysql_recording_rules
+    interval: 30s
+    rules:
+
+      - record: instance:mysql_up:current
+        expr: mysql_up
+
+      - record: instance:mysql_connections_active:ratio
+        expr: |
+          mysql_global_status_threads_connected / mysql_global_variables_max_connections
+
+      - record: instance:mysql_queries:rate5m
+        expr: rate(mysql_global_status_queries[5m])
+
+      - record: instance:mysql_slow_queries:rate5m
+        expr: rate(mysql_global_status_slow_queries[5m])
+
+  # ============================================
+  # BACKEND APP (RED metrics) — expense-backend
+  # ============================================
+  - name: backend_recording_rules
+    interval: 30s
+    rules:
+
+      - record: job_route:http_requests:rate5m
+        expr: sum by(job, route) (rate(http_requests_total[5m]))
+
+      - record: job_route:http_request_errors:ratio5m
+        expr: |
+          sum by(job, route) (rate(http_requests_total{status_code=~"5.."}[5m]))
+          /
+          sum by(job, route) (rate(http_requests_total[5m]))
+
+      - record: job_route:http_request_duration_seconds:p50
+        expr: |
+          histogram_quantile(0.50, sum by(job, route, le) (rate(http_request_duration_seconds_bucket[5m])))
+
+      - record: job_route:http_request_duration_seconds:p95
+        expr: |
+          histogram_quantile(0.95, sum by(job, route, le) (rate(http_request_duration_seconds_bucket[5m])))
+
+      - record: job:http_requests_in_flight:current
+        expr: http_requests_in_flight
+
+      # Uncomment if `curl .../metrics | grep -E "expenses_created|expense_amount"` shows these:
+      # - record: job:expenses_created:rate5m
+      #   expr: sum by(job) (rate(expenses_created_total[5m]))
+      # - record: job:expense_amount_rupees:rate5m
+      #   expr: sum by(job) (rate(expense_amount_rupees_total[5m]))
+
+  # ============================================
+  # BLACKBOX (HTTP + HTTPS probes)
+  # ============================================
+  - name: blackbox_recording_rules
+    interval: 30s
+    rules:
+
+      - record: job:probe_success:ratio5m
+        expr: avg_over_time(probe_success[5m])
+
+      - record: job:probe_duration_seconds:current
+        expr: probe_duration_seconds
+
+      - record: instance:probe_ssl_earliest_cert_expiry:hours_remaining
+        expr: (probe_ssl_earliest_cert_expiry - time()) / 3600
