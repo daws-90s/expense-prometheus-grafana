@@ -3,7 +3,7 @@
 # the sole internet-facing point (no ALB in front -- see ingress below).
 
 resource "aws_security_group" "frontend" {
-  name        = "${var.project_name}-${var.environment}-frontend-sg"
+  name        = "${var.project_name}-frontend-sg"
   description = "Allow HTTP/HTTPS direct from browsers, plus SSH for admin access"
   vpc_id      = data.aws_vpc.default.id
 
@@ -40,13 +40,12 @@ resource "aws_security_group" "frontend" {
   }
 
   tags = {
-    Name        = "${var.project_name}-${var.environment}-frontend-sg"
-    Environment = var.environment
+    Name = "${var.project_name}-frontend-sg"
   }
 }
 
 resource "aws_security_group" "backend" {
-  name        = "${var.project_name}-${var.environment}-backend-sg"
+  name        = "${var.project_name}-backend-sg"
   description = "Allow backend port from frontend SG only, plus SSH"
   vpc_id      = data.aws_vpc.default.id
 
@@ -75,13 +74,12 @@ resource "aws_security_group" "backend" {
   }
 
   tags = {
-    Name        = "${var.project_name}-${var.environment}-backend-sg"
-    Environment = var.environment
+    Name = "${var.project_name}-backend-sg"
   }
 }
 
 resource "aws_security_group" "mysql" {
-  name        = "${var.project_name}-${var.environment}-mysql-sg"
+  name        = "${var.project_name}-mysql-sg"
   description = "Allow MySQL port from backend SG only, plus SSH"
   vpc_id      = data.aws_vpc.default.id
 
@@ -110,8 +108,7 @@ resource "aws_security_group" "mysql" {
   }
 
   tags = {
-    Name        = "${var.project_name}-${var.environment}-mysql-sg"
-    Environment = var.environment
+    Name = "${var.project_name}-mysql-sg"
   }
 }
 
@@ -120,7 +117,7 @@ resource "aws_security_group" "mysql" {
 # private network, sourced from this SG rather than opened to the internet.
 
 resource "aws_security_group" "prometheus" {
-  name        = "${var.project_name}-${var.environment}-prometheus-sg"
+  name        = "${var.project_name}-prometheus-sg"
   description = "Prometheus UI + SSH inbound, all outbound (AWS API + scrape targets)"
   vpc_id      = data.aws_vpc.default.id
 
@@ -136,6 +133,14 @@ resource "aws_security_group" "prometheus" {
     description = "Grafana UI"
     from_port   = 3000
     to_port     = 3000
+    protocol    = "tcp"
+    cidr_blocks = [var.browser_cidr]
+  }
+
+  ingress {
+    description = "Alertmanager UI (view/silence firing alerts)"
+    from_port   = 9093
+    to_port     = 9093
     protocol    = "tcp"
     cidr_blocks = [var.browser_cidr]
   }
@@ -157,8 +162,7 @@ resource "aws_security_group" "prometheus" {
   }
 
   tags = {
-    Name        = "${var.project_name}-${var.environment}-prometheus-sg"
-    Environment = var.environment
+    Name = "${var.project_name}-prometheus-sg"
   }
 }
 

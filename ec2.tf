@@ -32,7 +32,6 @@ resource "aws_instance" "mysql" {
   subnet_id              = data.aws_subnets.default.ids[0]
   vpc_security_group_ids = [aws_security_group.mysql.id]
   #key_name               = var.key_name
-  iam_instance_profile = aws_iam_instance_profile.expense_mysql.name
 
   user_data = templatefile("${path.module}/userdata/mysql.sh", {
     db_root_password        = var.db_root_password
@@ -49,10 +48,9 @@ resource "aws_instance" "mysql" {
   }
 
   tags = {
-    Name        = "${var.project_name}-${var.environment}-mysql"
-    Environment = var.environment
-    Project     = var.project_tag
-    Tier        = "database"
+    Name    = "${var.project_name}-mysql"
+    Project = var.project_tag
+    Tier    = "database"
   }
 }
 
@@ -62,7 +60,6 @@ resource "aws_instance" "backend" {
   subnet_id              = data.aws_subnets.default.ids[0]
   vpc_security_group_ids = [aws_security_group.backend.id]
   #key_name               = var.key_name
-  iam_instance_profile = aws_iam_instance_profile.expense_backend.name
 
   user_data = templatefile("${path.module}/userdata/backend.sh", {
     db_host               = "mysql.${var.domain_name}"
@@ -81,10 +78,9 @@ resource "aws_instance" "backend" {
   }
 
   tags = {
-    Name        = "${var.project_name}-${var.environment}-backend"
-    Environment = var.environment
-    Project     = var.project_tag
-    Tier        = "backend"
+    Name    = "${var.project_name}-backend"
+    Project = var.project_tag
+    Tier    = "backend"
   }
 }
 
@@ -94,7 +90,6 @@ resource "aws_instance" "frontend" {
   subnet_id              = data.aws_subnets.default.ids[0]
   vpc_security_group_ids = [aws_security_group.frontend.id]
   #key_name               = var.key_name
-  iam_instance_profile = aws_iam_instance_profile.expense_frontend.name
 
   user_data = templatefile("${path.module}/userdata/frontend.sh", {
     backend_host          = "backend.${var.domain_name}"
@@ -112,10 +107,9 @@ resource "aws_instance" "frontend" {
   }
 
   tags = {
-    Name        = "${var.project_name}-${var.environment}-frontend"
-    Environment = var.environment
-    Project     = var.project_tag
-    Tier        = "frontend"
+    Name    = "${var.project_name}-frontend"
+    Project = var.project_tag
+    Tier    = "frontend"
   }
 }
 
@@ -127,14 +121,22 @@ resource "aws_instance" "prometheus" {
   iam_instance_profile   = aws_iam_instance_profile.prometheus.name
 
   user_data = templatefile("${path.module}/userdata/prometheus.sh", {
-    region                    = var.aws_region
-    backend_port              = var.backend_port
-    project_tag               = var.project_tag
-    prometheus_version        = var.prometheus_version
-    node_exporter_version     = var.node_exporter_version
-    blackbox_exporter_version = var.blackbox_exporter_version
-    domain_name               = var.domain_name
-    artifact_url              = "${var.artifacts_base_url}/expense-prometheus-v1.tar.gz"
+    region                     = var.aws_region
+    backend_port               = var.backend_port
+    project_tag                = var.project_tag
+    prometheus_version         = var.prometheus_version
+    node_exporter_version      = var.node_exporter_version
+    blackbox_exporter_version  = var.blackbox_exporter_version
+    domain_name                = var.domain_name
+    artifact_url               = "${var.artifacts_base_url}/expense-prometheus-v1.tar.gz"
+    alertmanager_version       = var.alertmanager_version
+    alertmanager_smtp_host     = var.alertmanager_smtp_host
+    alertmanager_smtp_from     = var.alertmanager_smtp_from
+    alertmanager_smtp_username = var.alertmanager_smtp_auth_username
+    alertmanager_smtp_password = var.alertmanager_smtp_auth_password
+    alertmanager_email_to      = var.alertmanager_email_to
+    alertmanager_slack_webhook = var.alertmanager_slack_webhook_url
+    alertmanager_slack_channel = var.alertmanager_slack_channel
   })
 
   # No depends_on -- EC2 service discovery finds scrape targets whenever
@@ -146,9 +148,8 @@ resource "aws_instance" "prometheus" {
   }
 
   tags = {
-    Name        = "${var.project_name}-${var.environment}-prometheus"
-    Environment = var.environment
-    Project     = var.project_tag
-    Tier        = "monitoring"
+    Name    = "${var.project_name}-prometheus"
+    Project = var.project_tag
+    Tier    = "monitoring"
   }
 }

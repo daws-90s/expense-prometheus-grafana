@@ -4,12 +4,6 @@ variable "aws_region" {
   default     = "us-east-1"
 }
 
-variable "environment" {
-  description = "Environment name, used in resource naming (expense-{env}-{component})"
-  type        = string
-  default     = "dev"
-}
-
 variable "project_name" {
   description = "Project name prefix for tagging/naming"
   type        = string
@@ -17,9 +11,8 @@ variable "project_name" {
 }
 
 variable "ssh_cidr" {
-  description = "CIDR allowed to SSH into instances. Narrow this to your own IP before applying -- 0.0.0.0/0 is a placeholder, not a recommendation."
+  description = "CIDR allowed to SSH into instances. Set this to your own IP in terraform.tfvars -- no default, since 0.0.0.0/0 (open to the internet) isn't a safe thing to fall back to silently."
   type        = string
-  default     = "0.0.0.0/0"
 }
 
 variable "backend_port" {
@@ -41,9 +34,8 @@ variable "frontend_port" {
 }
 
 variable "browser_cidr" {
-  description = "CIDR allowed to reach the frontend port directly from a browser. Nginx on the frontend reverse-proxies /api/ to the backend's private IP, so the backend itself never needs to be reachable from outside the VPC. 0.0.0.0/0 is a placeholder for a lab/demo environment, not a recommendation for anything long-lived."
+  description = "CIDR allowed to reach the frontend port directly from a browser, and the Prometheus/Grafana UIs. Nginx on the frontend reverse-proxies /api/ to the backend's private IP, so the backend itself never needs to be reachable from outside the VPC. Set this in terraform.tfvars -- no default, since 0.0.0.0/0 (open to the internet) isn't a safe thing to fall back to silently."
   type        = string
-  default     = "0.0.0.0/0"
 }
 
 variable "mysql_instance_type" {
@@ -71,21 +63,19 @@ variable "root_volume_size" {
 }
 
 variable "route53_zone_id" {
-  description = "Hosted zone ID for daws86s.fun"
+  description = "Hosted zone ID for domain_name -- yours, not this course's. Set this in terraform.tfvars."
   type        = string
-  default     = "Z0948150OFPSYTNVYZOY"
 }
 
 variable "domain_name" {
-  description = "Root domain name for the app's DNS records"
+  description = "Root domain name for the app's DNS records -- a domain/zone you actually control in Route53. Set this in terraform.tfvars."
   type        = string
-  default     = "daws86s.fun"
 }
 
 variable "artifacts_base_url" {
-  description = "Base URL user_data curls the mysql/backend/frontend tar.gz artifacts from -- the raw.githubusercontent.com path to expense-obs-documentation's artifacts/ folder"
+  description = "Base URL user_data curls the mysql/backend/frontend/prometheus tar.gz artifacts from -- the raw.githubusercontent.com path to expense-prometheus-grafana-docs's artifacts/ folder"
   type        = string
-  default     = "https://raw.githubusercontent.com/90s-org/expense-obs-documentation/main/artifacts"
+  default     = "https://raw.githubusercontent.com/daws-90s/expense-prometheus-grafana-docs/main/artifacts"
 }
 
 variable "db_root_password" {
@@ -137,4 +127,47 @@ variable "blackbox_exporter_version" {
   description = "blackbox_exporter release version (no leading v) installed by userdata/prometheus.sh -- verify the tag exists on the GitHub releases page before applying"
   type        = string
   default     = "0.25.0"
+}
+
+variable "alertmanager_version" {
+  description = "Alertmanager release version (no leading v) installed by userdata/prometheus.sh -- verify the tag exists on the GitHub releases page before applying"
+  type        = string
+  default     = "0.34.0"
+}
+
+variable "alertmanager_smtp_host" {
+  description = "SMTP smarthost Alertmanager sends mail through, host:port form (e.g. \"smtp.gmail.com:587\"). No default -- Alertmanager fails to start with an empty smarthost, so this must be set in terraform.tfvars for the email receiver to work."
+  type        = string
+}
+
+variable "alertmanager_smtp_from" {
+  description = "From address on alert emails."
+  type        = string
+}
+
+variable "alertmanager_smtp_auth_username" {
+  description = "SMTP auth username (for Gmail, your full address; use an app password, not your account password, in alertmanager_smtp_auth_password)."
+  type        = string
+}
+
+variable "alertmanager_smtp_auth_password" {
+  description = "SMTP auth password/app-password. Set in terraform.tfvars -- never commit a real value."
+  type        = string
+  sensitive   = true
+}
+
+variable "alertmanager_email_to" {
+  description = "Recipient address for the critical-severity email receiver."
+  type        = string
+}
+
+variable "alertmanager_slack_webhook_url" {
+  description = "Slack incoming webhook URL (Slack app -> Incoming Webhooks -> Add New Webhook). Set in terraform.tfvars -- never commit a real value."
+  type        = string
+  sensitive   = true
+}
+
+variable "alertmanager_slack_channel" {
+  description = "Slack channel the webhook posts alerts into, e.g. \"#alerts\"."
+  type        = string
 }

@@ -65,7 +65,7 @@ output "prometheus_public_ip" {
 }
 
 output "prometheus_fqdn" {
-  description = "Prometheus UI -- http://<this>:9090"
+  description = "Prometheus UI on :9090, Alertmanager on :9093, Grafana on :3000 -- all three run on this one instance."
   value       = aws_route53_record.prometheus.fqdn
 }
 

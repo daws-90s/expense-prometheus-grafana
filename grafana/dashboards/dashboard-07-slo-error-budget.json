@@ -507,6 +507,76 @@
       ],
       "title": "30-Day Availability Trend",
       "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Same 5m window BackendHighErrorRate alerts on -- reacts within one scrape cycle to a fault, unlike the 30d/1h panels above which need real volume to move visibly. Use this to confirm a fault injection actually landed.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 5
+              }
+            ]
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 23,
+        "x": 0,
+        "y": 18
+      },
+      "id": 7,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "10.2.6",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(http_requests_total{tier=\"backend\", status_code=~\"5..\"}[5m])) / sum(rate(http_requests_total{tier=\"backend\"}[5m])) * 100",
+          "hide": false,
+          "instant": false,
+          "legendFormat": "5m Error Rate",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Right Now: 5m Error Rate % (matches BackendHighErrorRate)",
+      "type": "stat"
     }
   ],
   "refresh": "",
@@ -523,6 +593,6 @@
   "timezone": "",
   "title": "SLO Error Budget",
   "uid": "d7a0slo0000000000000000",
-  "version": 1,
+  "version": 2,
   "weekStart": ""
 }

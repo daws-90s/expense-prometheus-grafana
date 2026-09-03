@@ -35,6 +35,7 @@ NODE_EXPORTER_VERSION='${node_exporter_version}'
 BLACKBOX_EXPORTER_VERSION='${blackbox_exporter_version}'
 DOMAIN_NAME='${domain_name}'
 ARTIFACT_URL='${artifact_url}'
+ALERTMANAGER_VERSION='${alertmanager_version}'
 
 id prometheus &>> $LOGS_FILE
 if [ $? -ne 0 ]; then
@@ -56,7 +57,7 @@ VALIDATE $? "Creating data directory"
 
 # ---- observability artifact (grafana dashboards + prometheus rules) ----
 # Same artifacts_base_url pattern as the other tiers -- pulled from
-# expense-obs-documentation's artifacts/ folder, not embedded in this
+# expense-prometheus-grafana-docs's artifacts/ folder, not embedded in this
 # script, since the dashboard JSON alone is well over the EC2 user_data
 # size limit.
 rm -rf /tmp/expense-prometheus /tmp/expense-prometheus.tar.gz
@@ -77,7 +78,7 @@ alerting:
   alertmanagers:
     - static_configs:
         - targets:
-          # - alertmanager:9093
+          - localhost:9093
 
 # Load rules once and periodically evaluate them according to the global 'evaluation_interval'.
 rule_files:
@@ -194,6 +195,98 @@ VALIDATE $? "Writing prometheus systemd unit"
 systemctl daemon-reload
 systemctl enable --now prometheus &>> $LOGS_FILE
 VALIDATE $? "Starting prometheus"
+
+# ---- alertmanager ----
+# Routes alerting-rules.yaml's severity labels straight to receivers:
+# warning -> Slack only, critical -> Slack + email. No separate EC2
+# instance -- Alertmanager runs alongside Prometheus on this box, so
+# prometheus.yml's alerting.alertmanagers target above just points at
+# localhost:9093.
+id alertmanager &>> $LOGS_FILE
+if [ $? -ne 0 ]; then
+    useradd --system --no-create-home --shell /sbin/nologin alertmanager &>> $LOGS_FILE
+    VALIDATE $? "Creating alertmanager user"
+else
+    echo -e "System user alertmanager already created ... $Y SKIPPING $N"
+fi
+
+cd /opt
+rm -f alertmanager-$ALERTMANAGER_VERSION.linux-amd64.tar.gz
+curl -sL -o alertmanager-$ALERTMANAGER_VERSION.linux-amd64.tar.gz "https://github.com/prometheus/alertmanager/releases/download/v$ALERTMANAGER_VERSION/alertmanager-$ALERTMANAGER_VERSION.linux-amd64.tar.gz" &>> $LOGS_FILE
+tar -xzf alertmanager-$ALERTMANAGER_VERSION.linux-amd64.tar.gz &>> $LOGS_FILE
+ln -sfn alertmanager-$ALERTMANAGER_VERSION.linux-amd64 /opt/alertmanager
+VALIDATE $? "Downloaded and extracted alertmanager"
+
+mkdir -p /var/lib/alertmanager
+VALIDATE $? "Creating alertmanager data directory"
+
+cat > /opt/alertmanager/alertmanager.yml <<CFG
+global:
+  resolve_timeout: 5m
+  smtp_smarthost: '${alertmanager_smtp_host}'
+  smtp_from: '${alertmanager_smtp_from}'
+  smtp_auth_username: '${alertmanager_smtp_username}'
+  smtp_auth_password: '${alertmanager_smtp_password}'
+  slack_api_url: '${alertmanager_slack_webhook}'
+
+route:
+  receiver: warning-alerts
+  group_by: ['alertname', 'instance']
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+  routes:
+    - match:
+        severity: critical
+      receiver: critical-alerts
+      repeat_interval: 1h
+
+receivers:
+  - name: warning-alerts
+    slack_configs:
+      - channel: '${alertmanager_slack_channel}'
+        send_resolved: true
+        title: '{{ .CommonAnnotations.summary }}'
+        text: '{{ range .Alerts }}{{ .Annotations.description }}{{ "\n" }}{{ end }}'
+
+  - name: critical-alerts
+    email_configs:
+      - to: '${alertmanager_email_to}'
+        send_resolved: true
+    slack_configs:
+      - channel: '${alertmanager_slack_channel}'
+        send_resolved: true
+        title: ':rotating_light: {{ .CommonAnnotations.summary }}'
+        text: '{{ range .Alerts }}{{ .Annotations.description }}{{ "\n" }}{{ end }}'
+CFG
+VALIDATE $? "Writing alertmanager.yml"
+
+chown -R alertmanager:alertmanager /opt/alertmanager-$ALERTMANAGER_VERSION.linux-amd64 /var/lib/alertmanager
+VALIDATE $? "Setting alertmanager ownership"
+
+cat > /etc/systemd/system/alertmanager.service <<'UNIT'
+[Unit]
+Description=Alertmanager
+Documentation=https://prometheus.io/docs/alerting/latest/alertmanager/
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=alertmanager
+Group=alertmanager
+Restart=on-failure
+ExecStart=/opt/alertmanager/alertmanager \
+  --config.file=/opt/alertmanager/alertmanager.yml \
+  --storage.path=/var/lib/alertmanager
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+VALIDATE $? "Writing alertmanager systemd unit"
+
+systemctl daemon-reload
+systemctl enable --now alertmanager &>> $LOGS_FILE
+VALIDATE $? "Starting alertmanager"
 
 # ---- node_exporter ----
 id node_exporter &>> $LOGS_FILE

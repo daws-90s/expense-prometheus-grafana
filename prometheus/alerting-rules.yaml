@@ -8,7 +8,7 @@ groups:
 
       - alert: HighCPUUsage
         expr: instance:node_cpu_utilisation:rate5m > 70
-        for: 5m
+        for: 2m
         labels:
           severity: warning
         annotations:
@@ -17,7 +17,7 @@ groups:
 
       - alert: CriticalCPUUsage
         expr: instance:node_cpu_utilisation:rate5m > 90
-        for: 5m
+        for: 2m
         labels:
           severity: critical
         annotations:
@@ -26,7 +26,7 @@ groups:
 
       - alert: HighMemoryUsage
         expr: instance:node_memory_utilisation:ratio > 70
-        for: 5m
+        for: 2m
         labels:
           severity: warning
         annotations:
@@ -34,7 +34,7 @@ groups:
 
       - alert: CriticalMemoryUsage
         expr: instance:node_memory_utilisation:ratio > 90
-        for: 5m
+        for: 2m
         labels:
           severity: critical
         annotations:
@@ -42,7 +42,7 @@ groups:
 
       - alert: HighDiskUsage
         expr: instance:node_filesystem_utilisation:ratio > 80
-        for: 5m
+        for: 2m
         labels:
           severity: warning
         annotations:
@@ -50,7 +50,7 @@ groups:
 
       - alert: CriticalDiskUsage
         expr: instance:node_filesystem_utilisation:ratio > 90
-        for: 5m
+        for: 2m
         labels:
           severity: critical
         annotations:
@@ -69,7 +69,7 @@ groups:
 
       - alert: HighLoadAverage
         expr: instance:node_load1:current > 3
-        for: 5m
+        for: 2m
         labels:
           severity: warning
         annotations:
@@ -99,7 +99,7 @@ groups:
 
       - alert: MySQLHighConnectionUsage
         expr: instance:mysql_connections_active:ratio > 0.8
-        for: 5m
+        for: 2m
         labels:
           severity: warning
         annotations:
@@ -113,7 +113,7 @@ groups:
 
       - alert: BackendHighErrorRate
         expr: job_route:http_request_errors:ratio5m > 0.05
-        for: 5m
+        for: 2m
         labels:
           severity: warning
         annotations:
@@ -122,7 +122,7 @@ groups:
 
       - alert: BackendHighLatencyP95
         expr: job_route:http_request_duration_seconds:p95 > 1
-        for: 5m
+        for: 2m
         labels:
           severity: warning
         annotations:
