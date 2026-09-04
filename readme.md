@@ -532,6 +532,41 @@ seeing it land in Slack/email: 2m for the rule's `for:` duration, plus up
 to 15s for Prometheus's next evaluation cycle, plus Alertmanager's 30s
 `group_wait` before it sends the first notification for a new group.
 
+### Scripts, if you don't want to click through this by hand
+
+`scripts/load-healthy-traffic.sh <base-url> [count]` creates real
+categories/expenses via `/api/...` -- background "good" traffic that gives
+the SLO panels a real denominator and populates the Business Metrics /
+Application RED dashboards with something to look at.
+
+`scripts/load-fault-traffic.sh <base-url> [error-count] [slow-count]
+[slow-ms]` hits `/debug/error` and `/debug/slow` the given number of times
+(defaults: 20 errors, 5 slow requests at 4000ms each). It checks first that
+`ENABLE_DEBUG_ROUTES` is actually on and tells you the exact SSH command if
+it isn't, rather than silently sending 404s.
+
+Run them from the frontend instance itself over plain HTTP -- no DNS or
+cert dependency, nginx serves `/api/` and `/debug/` on :80 the same as it
+does on :443. Copy them over first, since they live in this repo, not on
+the instance:
+
+```bash
+scp scripts/load-healthy-traffic.sh scripts/load-fault-traffic.sh ec2-user@<frontend-ip>:~
+ssh ec2-user@<frontend-ip>
+chmod +x load-healthy-traffic.sh load-fault-traffic.sh
+./load-healthy-traffic.sh http://localhost 50
+./load-fault-traffic.sh http://localhost 20 5
+```
+
+(From outside the VPC instead, swap `http://localhost` for
+`https://<domain>`.)
+
+Run the healthy one first if you want a realistic background ratio to fail
+against. The math: `errors / (errors + background) >= 5%` is what trips
+`BackendHighErrorRate`, which works out to roughly 1 `/debug/error` hit per
+19 good requests -- so `load-fault-traffic.sh`'s default of 20 errors is
+comfortably enough to cross that threshold even against a fairly quiet box.
+
 ### App-level (backend `/debug/*` routes) -- reachable from a browser
 
 The backend ships fault-injection routes (full list in the docs repo's
@@ -627,16 +662,24 @@ SRE error-budget formulas):
   sense of the volume behind it.
 - **30-Day Availability Trend** -- the same success-ratio formula as the
   first panel, plotted daily, to see whether things are trending up or
-  down rather than just reading today's snapshot.
-- **Right Now: 5m Error Rate %** -- added specifically so this dashboard
-  visibly reacts to a fault you just injected (section 12) instead of only
-  the 30-day panels, which barely move from a couple of minutes of bad
-  requests unless there's very little other traffic in the window. This
-  panel uses the exact same 5-minute window `BackendHighErrorRate` alerts
-  on, so it turns red at the same moment that alert would trip -- it's the
-  "did my fault injection actually land" check, not a real SLO metric
-  itself (a real SLO panel should stay boringly stable against a two-minute
-  blip; that's the *other* panels doing their job correctly).
+  down rather than just reading today's snapshot. **On a box that's only
+  been up a short while, the flat line sitting at 99.5% is not data** --
+  it's the SLO threshold reference line (`thresholdsStyle: "line"` draws it
+  constantly, regardless of whether there's anything to plot). The actual
+  `Availability` series only renders wherever the trailing-1-day query has
+  a real sample, which on a young box is a thin sliver, not a trend.
+- **Right Now: `$window` Error Rate %** -- added specifically so this
+  dashboard visibly reacts to a fault you just injected (section 12)
+  instead of only the 30-day panels, which barely move from a couple of
+  minutes of bad requests unless there's very little other traffic in the
+  window. `$window` is a dashboard variable (dropdown next to the time
+  picker, top of the dashboard) -- `5m` by default, matching
+  `BackendHighErrorRate`'s own window exactly, with `15m`/`30m`/`1h` also
+  selectable. Only `5m` lines up with what the alert actually watches;
+  switching it just changes what *this panel* displays, not the alert
+  itself. It's the "did my fault injection actually land" check, not a
+  real SLO metric (a real SLO panel should stay boringly stable against a
+  two-minute blip; that's the *other* panels doing their job correctly).
 
 **Two things worth knowing if you touch this dashboard:** the `0.995`
 target is typed directly into *every single panel's* PromQL expression --
@@ -698,6 +741,3 @@ than the three percentile lines.
   -- the manual runbook for the Prometheus/Grafana tier specifically, if
   you want to understand what `userdata/prometheus.sh` is doing step by
   step rather than just trusting the script.
-- `CLAUDE.md` in this repo -- the original build spec for the
-  observability layer (Prometheus, exporters, IAM, security groups). Useful
-  if you want the *design reasoning*, not just the *how to run it*.
