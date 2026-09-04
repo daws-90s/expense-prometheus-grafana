@@ -1,36 +1,19 @@
-# Copy this file to terraform.tfvars and fill in your own values.
-# terraform.tfvars is gitignored (see .gitignore) -- it's meant to hold the
-# values that are yours, not this course's, so it's never committed.
-#
-#   cp terraform.tfvars.example terraform.tfvars
+domain_name     = "daws90s.shop"
+route53_zone_id = "Z07086101C1CVP7AT2UK4"
 
-# A domain you actually control in Route53, and that domain's hosted zone ID.
-domain_name     = "yourdomain.com"
-route53_zone_id = "Z0000000000000000000"
-
-# Narrow both to your own IP (e.g. "1.2.3.4/32") -- 0.0.0.0/0 opens SSH and
-# the frontend/Prometheus/Grafana UIs to the whole internet.
+# 0.0.0.0/0 keeps the values this repo was already applying with -- narrow
+# both to your own IP (e.g. "1.2.3.4/32") before leaving this running.
 ssh_cidr     = "0.0.0.0/0"
 browser_cidr = "0.0.0.0/0"
 
-# Alertmanager (installed on the prometheus box) routes warning-severity
-# alerts to Slack, and critical-severity alerts to Slack + email. No
-# defaults -- Alertmanager fails to start with a blank SMTP smarthost, so
-# all of these are required.
-#
-# Gmail example: smtp host is "smtp.gmail.com:587", auth username is your
-# full address, and auth password must be an app password (myaccount.
-# google.com/apppasswords), not your real account password.
-#
-# Slack: create an app at api.slack.com/apps -> Incoming Webhooks -> Add
-# New Webhook to Workspace -> pick a channel -> copy the webhook URL.
+# TODO: these are placeholders, not real credentials -- Alertmanager will
+# fail to start until you replace them with a real SMTP smarthost/app
+# password and a real Slack incoming-webhook URL. See
+# terraform.tfvars.example for where to get each one.
 alertmanager_smtp_host          = "smtp.gmail.com:587"
-alertmanager_smtp_from          = "you@gmail.com"
-alertmanager_smtp_auth_username = "you@gmail.com"
-alertmanager_smtp_auth_password = "your-16-char-app-password"
-alertmanager_email_to           = "you@gmail.com"
-alertmanager_slack_webhook_url  = "https://hooks.slack.com/services/T000/B000/XXXXXXXXXXXXXXXXXXXXXXXX"
-alertmanager_slack_channel      = "#alerts"
-
-# Everything else in variables.tf has a working default -- override here
-# only if you need to (e.g. db_root_password, aws_region).
+alertmanager_smtp_from          = "your-from-email"
+alertmanager_smtp_auth_username = "your-from-email"
+alertmanager_smtp_auth_password = "your-app-password"
+alertmanager_email_to           = "your-to-email"
+alertmanager_slack_webhook_url  = "slack-incoming-webhook-url"
+alertmanager_slack_channel      = "#channel-name"
