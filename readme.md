@@ -577,7 +577,7 @@ walkthrough). Flip it once over SSH:
 ```bash
 ssh ec2-user@<backend-ip>
 sudo sed -i 's/ENABLE_DEBUG_ROUTES=false/ENABLE_DEBUG_ROUTES=true/' /app/.env
-sudo systemctl restart expense-backend
+sudo systemctl restart backend
 ```
 
 After that, `nginx.conf` (and `nginx-tls.conf`, for the HTTPS demo) proxy
